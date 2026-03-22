@@ -65,13 +65,24 @@ All endpoints are prefixed with: `/api/v1/project-manager/google-calendar`
 ### Authentication
 The module reuses the **Google OAuth tokens** stored in the `EmailAccount` table. As long as a user has connected their Google Email account, the Calendar service can use those same `accessToken` and `refreshToken` to access their calendar.
 
-### Synchronization
-When the `/sync` endpoint is called:
-1. The service fetches the Google Calendar client.
-2. It retrieves the latest 50 events from the `primary` calendar.
-3. It performs an **upsert** (Update or Insert) using the `googleEventId` to prevent duplicate records while keeping event details (like summary or time) updated.
+### Synchronization (Manual & Automatic)
+1. **Manual Sync**: Triggered via `POST /sync`. It fetches events from all visible calendars and allows associating them with a `projectId`.
+2. **Automatic Background Sync**: A cron job runs every minute (defined in `src/app/cron/emailSyncCron.js`) that calls `syncAllConnectedCalendars()`. This ensures the local database is always up-to-date without user intervention.
+3. **Smart Update**: Uses **Upsert** logic to ensure no duplicate events are created in the database.
+
+### Automatic Event Creation
+When a meeting is scheduled via the **Project Meeting Module** (`ProjectMeetingService.createMeeting`), the system automatically:
+- Creates a corresponding event in the user's Primary Google Calendar.
+- Saves the Google Event ID in our local database for linking.
+
+### Filtering & Noise Reduction
+To ensure users only see their **actual scheduled meetings**, the sync logic:
+- **Excludes Holiday/Birthday Calendars**: Automatically ignores calendars with "holiday" or "birthday" in their title.
+- **Filters by Status**: Skips any events marked as `cancelled`.
+- **Multi-Calendar Support**: Fetches from the Primary calendar and any other calendars the user has explicitly `selected` or `owns`.
 
 ## Usage Examples
+... (rest of the file)
 
 ### Syncing Events
 ```json
